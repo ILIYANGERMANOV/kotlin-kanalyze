@@ -12,7 +12,8 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.idea.KotlinLanguage
-import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
 fun main() {
     println("Hello")
@@ -33,14 +34,44 @@ fun main() {
             fun okay() {
                 main()
             }
+            
+            class SomeUseCase {
+              fun execute() {
+              
+              }
+            }
         """.trimIndent()
     val file = PsiFileFactory.getInstance(environment.project)
         .createFileFromText("MyFile.kt", KotlinLanguage.INSTANCE, code)
+        ?.let(::convertPsiFileToKtFile)
         ?: error("[IVY] File is null! Failed to parse file!")
 
-    extractFunctions(file).forEach {
-        println(it.name)
-    }
+    traversePsiTree(file)
+}
+
+fun traversePsiTree(ktFile: KtFile) {
+    ktFile.accept(object : KtTreeVisitorVoid() {
+        override fun visitNamedFunction(function: KtNamedFunction) {
+            // Process the function
+            super.visitNamedFunction(function)
+            println("Function: ${function.name} (parent ${function.containingClassOrObject?.name})")
+        }
+
+        override fun visitFunctionType(type: KtFunctionType) {
+            super.visitFunctionType(type)
+        }
+
+        override fun visitClass(klass: KtClass) {
+            super.visitClass(klass)
+            println("Class: ${klass.name}")
+        }
+
+        // Override other visit methods as needed
+    })
+}
+
+fun convertPsiFileToKtFile(psiFile: PsiFile): KtFile? {
+    return if (psiFile is KtFile) psiFile else null
 }
 
 fun extractFunctions(psiFile: PsiFile): List<KtNamedFunction> {
